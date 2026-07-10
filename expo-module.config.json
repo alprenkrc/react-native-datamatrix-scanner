@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["ReactNativeDatamatrixScannerModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.datamatrixscanner.ReactNativeDatamatrixScannerModule"]
+  }
+}

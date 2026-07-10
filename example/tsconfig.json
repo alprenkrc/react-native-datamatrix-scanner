@@ -1,0 +1,10 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "react-native-datamatrix-scanner": ["../src/index"],
+      "react-native-datamatrix-scanner/*": ["../src/*"]
+    }
+  }
+}
