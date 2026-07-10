@@ -26,7 +26,6 @@
   "author": "alprenkrc <alptrek3@hotmail.com> (https://github.com/alprenkrc)",
   "license": "MIT",
   "homepage": "https://github.com/alprenkrc/react-native-datamatrix-scanner#readme",
-  "dependencies": {},
   "devDependencies": {
     "@babel/core": "^7.26.0",
     "@types/jest": "^29.2.1",
@@ -35,6 +34,7 @@
     "eslint": "~9.39.4",
     "eslint-config-universe": "^15.0.3",
     "expo": "^57.0.2",
+    "expo-modules-core": "^57.0.3",
     "jest": "^29.7.0",
     "jest-expo": "~55.0.9",
     "prettier": "^3.0.0",
@@ -48,7 +48,8 @@
     ]
   },
   "peerDependencies": {
-    "expo": "*",
+    "expo": ">=50.0.0",
+    "expo-modules-core": "*",
     "react": "*",
     "react-native": "*"
   }

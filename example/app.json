@@ -1,14 +1,17 @@
 {
   "expo": {
-    "name": "react-native-datamatrix-scanner-example",
+    "name": "DataMatrix Scanner Example",
     "slug": "react-native-datamatrix-scanner-example",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "expo.modules.datamatrixscanner.example"
+      "bundleIdentifier": "expo.modules.datamatrixscanner.example",
+      "infoPlist": {
+        "NSCameraUsageDescription": "DataMatrix barkodlarını taramak için kamera gereklidir."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -18,10 +21,21 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "expo.modules.datamatrixscanner.example"
+      "package": "expo.modules.datamatrixscanner.example",
+      "permissions": ["android.permission.CAMERA"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24
+          }
+        }
+      ]
+    ]
   }
 }

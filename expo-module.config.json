@@ -1,9 +1,10 @@
 {
   "platforms": ["apple", "android"],
   "apple": {
-    "modules": ["ReactNativeDatamatrixScannerModule"]
+    "modules": ["DataMatrixScannerModule"],
+    "podspecPath": ["ios/ReactNativeDatamatrixScanner.podspec"]
   },
   "android": {
-    "modules": ["expo.modules.datamatrixscanner.ReactNativeDatamatrixScannerModule"]
+    "modules": ["expo.modules.datamatrixscanner.DataMatrixScannerModule"]
   }
 }

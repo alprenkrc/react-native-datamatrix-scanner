@@ -4,8 +4,11 @@
   "main": "index.ts",
   "dependencies": {
     "expo": "~57.0.4",
+    "expo-build-properties": "^57.0.3",
+    "expo-dev-client": "~57.0.5",
     "react": "19.2.3",
-    "react-native": "0.86.0"
+    "react-native": "0.86.0",
+    "react-native-safe-area-context": "^5.8.0"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
