@@ -7,6 +7,7 @@ import android.util.Log
 import android.view.Surface
 import android.view.OrientationEventListener
 import android.view.View.MeasureSpec
+import android.util.Size
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
@@ -17,6 +18,8 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.lifecycle.awaitInstance
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.Exceptions
@@ -184,9 +187,20 @@ class DataMatrixScannerView(
         val provider = ProcessCameraProvider.awaitInstance(appContext.throwingActivity)
         cameraProvider = provider
 
-        val preview = Preview.Builder().build().also {
-          it.surfaceProvider = previewView.surfaceProvider
-        }
+        val resolutionSelector = ResolutionSelector.Builder()
+            .setResolutionStrategy(
+                ResolutionStrategy(
+                    Size(1920, 1080), // İlaç karekodları için en ideal tatlı nokta
+                    ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+                )
+            )
+            .build()
+
+      val preview = Preview.Builder()
+          .setResolutionSelector(resolutionSelector) // Preview çözünürlüğü
+          .build().also {
+              it.surfaceProvider = previewView.surfaceProvider
+          }
 
         // Always use the rear camera – front camera is not supported for
         // DataMatrix by either MLKit or AVFoundation on iOS.
@@ -199,15 +213,16 @@ class DataMatrixScannerView(
         }
         analyzer = activeAnalyzer
 
-        imageAnalysisUseCase = ImageAnalysis.Builder()
-          .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-          .build()
-          .also { analysis ->
-            analysis.setAnalyzer(
-              ContextCompat.getMainExecutor(context),
-              activeAnalyzer
-            )
-          }
+imageAnalysisUseCase = ImageAnalysis.Builder()
+    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+    .setResolutionSelector(resolutionSelector) // MLKit'e gidecek analiz çözünürlüğü
+    .build()
+    .also { analysis ->
+        analysis.setAnalyzer(
+            ContextCompat.getMainExecutor(context),
+            activeAnalyzer
+        )
+    }
 
         val useCases = UseCaseGroup.Builder()
           .addUseCase(preview)
