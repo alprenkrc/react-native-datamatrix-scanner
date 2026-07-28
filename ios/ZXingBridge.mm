@@ -2,11 +2,10 @@
 // react-native-datamatrix-scanner
 
 #import "ZXingBridge.h"
-#include <ZXing/ReadBarcode.h>
-#include <ZXing/ReaderOptions.h>
-#include <ZXing/Barcode.h>
-#include <ZXing/ImageView.h>
-#include <ZXing/TextMode.h>
+#include "ReadBarcode.h"
+#include "ReaderOptions.h"
+#include "Barcode.h"
+#include "ImageView.h"
 
 @implementation ZXingBarcodeResult
 @end
