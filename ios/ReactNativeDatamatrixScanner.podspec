@@ -15,13 +15,16 @@ Pod::Spec.new do |s|
   s.static_framework = true
 
   s.dependency 'ExpoModulesCore'
+  s.dependency 'zxing-cpp'
 
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
-    'SWIFT_COMPILATION_MODE' => 'wholemodule'
+    'SWIFT_COMPILATION_MODE' => 'wholemodule',
+    'CLANG_CXX_LANGUAGE_STANDARD' => 'c++20',
+    'CLANG_CXX_LIBRARY' => 'libc++'
   }
 
-  s.source_files = '**/*.{h,m,swift}'
+  s.source_files = '**/*.{h,m,mm,swift}'
 
   # AVFoundation is a system framework; no extra pod needed.
   s.frameworks = 'AVFoundation'

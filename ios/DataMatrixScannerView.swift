@@ -1,8 +1,9 @@
 // DataMatrixScannerView.swift
 // react-native-datamatrix-scanner
 //
-// Vision-based view that decodes DataMatrix codes from the device rear camera
-// using AVCaptureVideoDataOutput and Apple's Vision framework. Supports color inversion.
+// Vision + ZXing-C++ dual-engine view that decodes DataMatrix codes from the device
+// rear camera. Supports standard & inverted codes, 1080p resolution, raw byte payloads,
+// and automatic ZXing-C++ fallback.
 
 import AVFoundation
 import CoreImage
@@ -15,7 +16,7 @@ import Vision
 // ---------------------------------------------------------------------------
 
 /// Native UIView that embeds an AVCaptureSession configured to detect
-/// **DataMatrix** codes only. Supports standard and inverted codes.
+/// **DataMatrix** codes using Apple's Vision framework with a **ZXing-C++** fallback.
 class DataMatrixScannerView: ExpoView, AVCaptureVideoDataOutputSampleBufferDelegate {
 
   // -----------------------------------------------------------------------
@@ -123,11 +124,35 @@ class DataMatrixScannerView: ExpoView, AVCaptureVideoDataOutputSampleBufferDeleg
     }
     captureDevice = device
 
-    // 2. Create device input.
+    // 2. Configure camera hardware settings (Auto Focus, Exposure, White Balance)
+    do {
+      try device.lockForConfiguration()
+      if device.isFocusModeSupported(.continuousAutoFocus) {
+        device.focusMode = .continuousAutoFocus
+      }
+      if device.isExposureModeSupported(.continuousAutoExposure) {
+        device.exposureMode = .continuousAutoExposure
+      }
+      if device.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
+        device.whiteBalanceMode = .continuousAutoWhiteBalance
+      }
+      device.isSubjectAreaChangeMonitoringEnabled = true
+      device.unlockForConfiguration()
+    } catch {
+      Log.warn("Failed to lock camera device for configuration: \(error.localizedDescription)")
+    }
+
+    // 3. Create device input and configure session preset
     do {
       let input = try AVCaptureDeviceInput(device: device)
       session.beginConfiguration()
-      session.sessionPreset = .high
+
+      // Prefer 1080p for sharp DataMatrix reading (matching Android CameraX strategy)
+      if session.canSetSessionPreset(.hd1920x1080) {
+        session.sessionPreset = .hd1920x1080
+      } else {
+        session.sessionPreset = .high
+      }
 
       if session.canAddInput(input) {
         session.addInput(input)
@@ -139,7 +164,7 @@ class DataMatrixScannerView: ExpoView, AVCaptureVideoDataOutputSampleBufferDeleg
         return
       }
 
-      // 3. Video data output for Vision DataMatrix detection.
+      // 4. Video data output for DataMatrix detection.
       if session.canAddOutput(videoDataOutput) {
         session.addOutput(videoDataOutput)
         videoDataOutput.setSampleBufferDelegate(self, queue: sessionQueue)
@@ -163,7 +188,7 @@ class DataMatrixScannerView: ExpoView, AVCaptureVideoDataOutputSampleBufferDeleg
       return
     }
 
-    // 4. Start the session.
+    // 5. Start the session.
     session.startRunning()
     applyTorch()
 
@@ -209,7 +234,7 @@ class DataMatrixScannerView: ExpoView, AVCaptureVideoDataOutputSampleBufferDeleg
 
     var inputImage = CIImage(cvPixelBuffer: pixelBuffer)
 
-    // Apply color inversion if enableInverse is true.
+    // Apply color inversion if enableInverse prop is enabled
     if enableInverse {
       if let filter = CIFilter(name: "CIColorInvert") {
         filter.setValue(inputImage, forKey: kCIInputImageKey)
@@ -219,25 +244,30 @@ class DataMatrixScannerView: ExpoView, AVCaptureVideoDataOutputSampleBufferDeleg
       }
     }
 
+    // Engine 1: Apple Vision Framework
     let request = VNDetectBarcodesRequest { [weak self] request, error in
-      defer { self?.isProcessingFrame = false }
       guard let self = self else { return }
 
+      var barcodesPayload: [[String: Any]] = []
       if let results = request.results as? [VNBarcodeObservation] {
-        var barcodesPayload: [[String: Any]] = []
         for barcode in results {
           if barcode.symbology == .dataMatrix, let stringValue = barcode.payloadStringValue {
-            let payload = self.buildBarcodePayload(barcode, stringValue: stringValue)
+            let payload = self.buildVisionPayload(barcode, stringValue: stringValue)
             barcodesPayload.append(payload)
           }
         }
-
-        if !barcodesPayload.isEmpty {
-          DispatchQueue.main.async { [weak self] in
-            self?.dispatchScanResult(["barcodes": barcodesPayload])
-          }
-        }
       }
+
+      if !barcodesPayload.isEmpty {
+        self.isProcessingFrame = false
+        DispatchQueue.main.async { [weak self] in
+          self?.dispatchScanResult(["barcodes": barcodesPayload])
+        }
+        return
+      }
+
+      // Engine 2: ZXing-C++ Fallback Engine
+      self.tryZXingFallback(pixelBuffer: pixelBuffer)
     }
     request.symbologies = [.dataMatrix]
 
@@ -245,7 +275,25 @@ class DataMatrixScannerView: ExpoView, AVCaptureVideoDataOutputSampleBufferDeleg
     do {
       try handler.perform([request])
     } catch {
-      isProcessingFrame = false
+      tryZXingFallback(pixelBuffer: pixelBuffer)
+    }
+  }
+
+  private func tryZXingFallback(pixelBuffer: CVPixelBuffer) {
+    defer { isProcessingFrame = false }
+
+    let zxingResults = ZXingBridge.readDataMatrix(fromPixelBuffer: pixelBuffer)
+    if !zxingResults.isEmpty {
+      var barcodesPayload: [[String: Any]] = []
+      for res in zxingResults {
+        let payload = buildZXingPayload(res)
+        barcodesPayload.append(payload)
+      }
+      if !barcodesPayload.isEmpty {
+        DispatchQueue.main.async { [weak self] in
+          self?.dispatchScanResult(["barcodes": barcodesPayload])
+        }
+      }
     }
   }
 
@@ -253,7 +301,7 @@ class DataMatrixScannerView: ExpoView, AVCaptureVideoDataOutputSampleBufferDeleg
   // MARK: Result building & dispatch
   // -----------------------------------------------------------------------
 
-  private func buildBarcodePayload(_ barcode: VNBarcodeObservation, stringValue: String) -> [String: Any] {
+  private func buildVisionPayload(_ barcode: VNBarcodeObservation, stringValue: String) -> [String: Any] {
     guard let previewLayer = self.previewLayer else { return [:] }
 
     // Bounding Box.
@@ -280,11 +328,74 @@ class DataMatrixScannerView: ExpoView, AVCaptureVideoDataOutputSampleBufferDeleg
       convertPoint(barcode.bottomLeft, previewLayer: previewLayer)
     ]
 
-    return [
+    var rawString: String? = nil
+    if let payloadData = barcode.payloadData {
+      rawString = String(data: payloadData, encoding: .isoLatin1)
+    }
+
+    var payload: [String: Any] = [
       "data":         stringValue,
       "cornerPoints": corners,
       "bounds":       bounds
     ]
+    if let rawString {
+      payload["raw"] = rawString
+    }
+    return payload
+  }
+
+  private func buildZXingPayload(_ res: ZXingBarcodeResult) -> [String: Any] {
+    let viewWidth = bounds.width
+    let viewHeight = bounds.height
+    let imgWidth = CGFloat(res.imageWidth)
+    let imgHeight = CGFloat(res.imageHeight)
+
+    var scale: CGFloat = 1.0
+    var offsetX: CGFloat = 0.0
+    var offsetY: CGFloat = 0.0
+
+    if imgWidth > 0 && imgHeight > 0 && viewWidth > 0 && viewHeight > 0 {
+      let rImage = imgWidth / imgHeight
+      let rView = viewWidth / viewHeight
+      if rImage > rView {
+        scale = viewHeight / imgHeight
+        offsetX = (viewWidth - imgWidth * scale) / 2.0
+      } else {
+        scale = viewWidth / imgWidth
+        offsetY = (viewHeight - imgHeight * scale) / 2.0
+      }
+    }
+
+    var mappedCorners: [[String: CGFloat]] = []
+    for ptDict in res.cornerPoints {
+      let px = (ptDict["x"] as? CGFloat) ?? 0.0
+      let py = (ptDict["y"] as? CGFloat) ?? 0.0
+      let mappedX = px * scale + offsetX
+      let mappedY = py * scale + offsetY
+      mappedCorners.append(["x": mappedX, "y": mappedY])
+    }
+
+    let xs = mappedCorners.map { $0["x"] ?? 0.0 }
+    let ys = mappedCorners.map { $0["y"] ?? 0.0 }
+    let minX = xs.min() ?? 0.0
+    let minY = ys.min() ?? 0.0
+    let maxX = xs.max() ?? 0.0
+    let maxY = ys.max() ?? 0.0
+
+    let boundsDict: [String: Any] = [
+      "origin": ["x": minX, "y": minY],
+      "size":   ["width": maxX - minX, "height": maxY - minY]
+    ]
+
+    var payload: [String: Any] = [
+      "data":         res.text,
+      "cornerPoints": mappedCorners,
+      "bounds":       boundsDict
+    ]
+    if let raw = res.raw {
+      payload["raw"] = raw
+    }
+    return payload
   }
 
   private func convertPoint(_ point: CGPoint, previewLayer: AVCaptureVideoPreviewLayer) -> [String: CGFloat] {
