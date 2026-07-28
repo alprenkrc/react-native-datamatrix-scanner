@@ -48,6 +48,17 @@ class DataMatrixAnalyzer(
       .build()
   )
 
+  private val zxingReader = zxingcpp.BarcodeReader(
+    options = zxingcpp.BarcodeReader.Options().apply {
+      formats = setOf(zxingcpp.BarcodeReader.Format.DATA_MATRIX)
+      tryHarder = true
+      tryRotate = true
+      tryInvert = true
+      tryDownscale = true
+      textMode = zxingcpp.BarcodeReader.TextMode.PLAIN
+    }
+  )
+
   override fun analyze(imageProxy: ImageProxy) {
     val mediaImage = imageProxy.image
     if (mediaImage == null) {
@@ -98,23 +109,62 @@ class DataMatrixAnalyzer(
 
     scanner.process(image)
       .addOnSuccessListener { barcodes ->
-        if (barcodes.isEmpty()) return@addOnSuccessListener
+        if (barcodes.isNotEmpty()) {
+          val list = ArrayList<BarcodeData>()
+          for (barcode in barcodes) {
+            val data = barcode.rawValue ?: barcode.rawBytes?.let { String(it) } ?: continue
+            val raw = barcode.rawBytes?.let { String(it) }
+            val cornerPoints = barcode.cornerPoints?.let { points ->
+              IntArray(points.size * 2).apply {
+                points.forEachIndexed { i, p ->
+                  this[i * 2] = p.x
+                  this[i * 2 + 1] = p.y
+                }
+              }.toList()
+            } ?: emptyList()
+            list.add(BarcodeData(data, raw, cornerPoints))
+          }
 
-        val list = ArrayList<BarcodeData>()
-        for (barcode in barcodes) {
-          val data = barcode.rawValue ?: barcode.rawBytes?.let { String(it) } ?: continue
-          val raw = barcode.rawBytes?.let { String(it) }
-          val cornerPoints = barcode.cornerPoints?.let { points ->
-            IntArray(points.size * 2).apply {
-              points.forEachIndexed { i, p ->
-                this[i * 2] = p.x
-                this[i * 2 + 1] = p.y
-              }
-            }.toList()
-          } ?: emptyList()
-          list.add(BarcodeData(data, raw, cornerPoints))
+          if (list.isNotEmpty()) {
+            onResult(
+              ScanResult(
+                barcodes = list,
+                imageWidth = effectiveWidth,
+                imageHeight = effectiveHeight
+              )
+            )
+            imageProxy.close()
+            return@addOnSuccessListener
+          }
         }
 
+        // MLKit returned empty list or no valid barcodes -> Try ZXing-C++ Fallback
+        tryZXingFallback(imageProxy, effectiveWidth, effectiveHeight)
+      }
+      .addOnFailureListener { e ->
+        Log.d(TAG, "MLKit scanning failed: ${e.message}")
+        // MLKit failed with error -> Try ZXing-C++ Fallback
+        tryZXingFallback(imageProxy, effectiveWidth, effectiveHeight)
+      }
+  }
+
+  private fun tryZXingFallback(imageProxy: ImageProxy, effectiveWidth: Int, effectiveHeight: Int) {
+    try {
+      val results = zxingReader.read(imageProxy)
+      if (results.isNotEmpty()) {
+        val list = ArrayList<BarcodeData>()
+        for (res in results) {
+          val data = res.text ?: res.bytes?.let { String(it, Charsets.ISO_8859_1) } ?: continue
+          val raw = res.bytes?.let { String(it, Charsets.ISO_8859_1) } ?: res.text
+          val pos = res.position
+          val cornerPoints = listOf(
+            pos.topLeft.x, pos.topLeft.y,
+            pos.topRight.x, pos.topRight.y,
+            pos.bottomRight.x, pos.bottomRight.y,
+            pos.bottomLeft.x, pos.bottomLeft.y
+          )
+          list.add(BarcodeData(data, raw, cornerPoints))
+        }
         if (list.isNotEmpty()) {
           onResult(
             ScanResult(
@@ -125,12 +175,11 @@ class DataMatrixAnalyzer(
           )
         }
       }
-      .addOnFailureListener { e ->
-        Log.d(TAG, "DataMatrix scanning failed: ${e.message}")
-      }
-      .addOnCompleteListener {
-        imageProxy.close()
-      }
+    } catch (e: Exception) {
+      Log.d(TAG, "ZXing-C++ scanning failed: ${e.message}")
+    } finally {
+      imageProxy.close()
+    }
   }
 
   companion object {

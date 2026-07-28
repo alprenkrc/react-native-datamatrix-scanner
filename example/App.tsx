@@ -96,7 +96,9 @@ function ScannerScreen() {
   const [activeBounds, setActiveBounds] = useState<BoundingBox | null>(null);
   const timeoutRef = useRef<any>(null);
 
-  const handleScanned = useCallback((result: DataMatrixScanResult) => {
+  const handleScanned = useCallback((event: any) => {
+    const result = event.barcodes ? event.barcodes[0] : event;
+    if (!result) return;
     setLastResult(result);
     setScanCount((c) => c + 1);
     setActiveBounds(result.bounds);
@@ -226,22 +228,26 @@ function ScannerScreen() {
               <ResultRow label="Ham" value={lastResult.raw} />
             )}
 
-            <ResultRow
-              label="Köşe Noktaları"
-              value={lastResult.cornerPoints
-                .map((p) => `(${p.x.toFixed(1)}, ${p.y.toFixed(1)})`)
-                .join('  ')}
-            />
+            {lastResult.cornerPoints && (
+              <ResultRow
+                label="Köşe Noktaları"
+                value={lastResult.cornerPoints
+                  .map((p) => `(${p.x.toFixed(1)}, ${p.y.toFixed(1)})`)
+                  .join('  ')}
+              />
+            )}
 
-            <ResultRow
-              label="Bounding Box"
-              value={
-                `x:${lastResult.bounds.origin.x.toFixed(1)}  ` +
-                `y:${lastResult.bounds.origin.y.toFixed(1)}  ` +
-                `w:${lastResult.bounds.size.width.toFixed(1)}  ` +
-                `h:${lastResult.bounds.size.height.toFixed(1)}`
-              }
-            />
+            {lastResult.bounds && (
+              <ResultRow
+                label="Bounding Box"
+                value={
+                  `x:${lastResult.bounds.origin?.x?.toFixed(1) ?? '0'}  ` +
+                  `y:${lastResult.bounds.origin?.y?.toFixed(1) ?? '0'}  ` +
+                  `w:${lastResult.bounds.size?.width?.toFixed(1) ?? '0'}  ` +
+                  `h:${lastResult.bounds.size?.height?.toFixed(1) ?? '0'}`
+                }
+              />
+            )}
           </ScrollView>
         ) : (
           <View style={styles.waitingCard}>
