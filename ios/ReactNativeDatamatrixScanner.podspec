@@ -26,6 +26,7 @@ Pod::Spec.new do |s|
   }
 
   s.source_files = '**/*.{h,m,mm,swift,cpp}'
+  s.public_header_files = 'ZXingBridge.h'
 
   # AVFoundation is a system framework; no extra pod needed.
   s.frameworks = 'AVFoundation'
