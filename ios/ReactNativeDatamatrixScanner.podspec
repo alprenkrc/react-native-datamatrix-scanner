@@ -32,7 +32,7 @@ Pod::Spec.new do |s|
   # case-insensitive name collision with ZXing's own headers on macOS
   # (libzint/eci.h collides with zxing/ECI.h), producing build errors:
   #   "cannot use dot operator on a type" and "use of undeclared identifier 'ToECI'"
-  s.source_files = '**/*.{h,m,mm,swift,cpp,c}'
+  s.source_files = '**/*.{h,m,mm,swift,cpp}'
   s.exclude_files = 'zxing/libzint/**/*.h'
   s.public_header_files = 'ZXingBridge.h'
 
