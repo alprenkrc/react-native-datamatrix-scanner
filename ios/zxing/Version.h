@@ -1,2 +1,11 @@
 #pragma once
-#include "ZXVersion.h"
+
+#ifndef ZXING_VERSION_STR
+#define ZXING_VERSION_STR "2.3.0"
+#endif
+
+#ifndef ZXING_VERSION_MAJOR
+#define ZXING_VERSION_MAJOR 2
+#define ZXING_VERSION_MINOR 3
+#define ZXING_VERSION_PATCH 0
+#endif
