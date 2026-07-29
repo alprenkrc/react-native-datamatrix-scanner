@@ -20,7 +20,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface ZXingBridge : NSObject
 
-+ (NSArray<ZXingBarcodeResult *> *)readDataMatrixFromPixelBuffer:(CVPixelBufferRef)pixelBuffer;
++ (NSArray<ZXingBarcodeResult *> *)readDataMatrixFromPixelBuffer:(CVPixelBufferRef)pixelBuffer enableInverse:(BOOL)enableInverse;
 
 @end
 

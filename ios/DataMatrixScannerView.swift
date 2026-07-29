@@ -282,7 +282,7 @@ class DataMatrixScannerView: ExpoView, AVCaptureVideoDataOutputSampleBufferDeleg
   private func tryZXingFallback(pixelBuffer: CVPixelBuffer) {
     defer { isProcessingFrame = false }
 
-    let zxingResults = ZXingBridge.readDataMatrix(from: pixelBuffer)
+    let zxingResults = ZXingBridge.readDataMatrix(from: pixelBuffer, enableInverse: enableInverse)
     if !zxingResults.isEmpty {
       var barcodesPayload: [[String: Any]] = []
       for res in zxingResults {
