@@ -170,7 +170,7 @@ class DataMatrixScannerView: ExpoView, AVCaptureVideoDataOutputSampleBufferDeleg
         videoDataOutput.setSampleBufferDelegate(self, queue: sessionQueue)
         videoDataOutput.alwaysDiscardsLateVideoFrames = true
         videoDataOutput.videoSettings = [
-          kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)
+          kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_420YpCbCr8BiPlanarFullRange)
         ]
       } else {
         session.commitConfiguration()
