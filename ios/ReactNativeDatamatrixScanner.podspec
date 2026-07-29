@@ -26,7 +26,14 @@ Pod::Spec.new do |s|
     'HEADER_SEARCH_PATHS' => '"$(PODS_TARGET_SRCROOT)/zxing" "$(PODS_TARGET_SRCROOT)/zxing/datamatrix" "$(PODS_TARGET_SRCROOT)/zxing/aztec" "$(PODS_TARGET_SRCROOT)/zxing/maxicode" "$(PODS_TARGET_SRCROOT)/zxing/oned" "$(PODS_TARGET_SRCROOT)/zxing/pdf417" "$(PODS_TARGET_SRCROOT)/zxing/qrcode" "$(PODS_TARGET_SRCROOT)/zxing/libzint" "$(PODS_TARGET_SRCROOT)/zxing/libzueci"'
   }
 
-  s.source_files = '**/*.{h,m,mm,swift,cpp}'
+  # Exclude libzint stub .h files from headers.
+  # These stubs contain only a relative path string (e.g. "../../../zint/backend/eci.h")
+  # rather than actual C code. CocoaPods copies them to Pods/Headers/, causing
+  # case-insensitive name collision with ZXing's own headers on macOS
+  # (libzint/eci.h collides with zxing/ECI.h), producing build errors:
+  #   "cannot use dot operator on a type" and "use of undeclared identifier 'ToECI'"
+  s.source_files = '**/*.{h,m,mm,swift,cpp,c}'
+  s.exclude_files = 'zxing/libzint/**/*.h'
   s.public_header_files = 'ZXingBridge.h'
 
   # AVFoundation is a system framework; no extra pod needed.
