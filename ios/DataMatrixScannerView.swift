@@ -139,7 +139,7 @@ class DataMatrixScannerView: ExpoView, AVCaptureVideoDataOutputSampleBufferDeleg
       device.isSubjectAreaChangeMonitoringEnabled = true
       device.unlockForConfiguration()
     } catch {
-      Log.warn("Failed to lock camera device for configuration: \(error.localizedDescription)")
+      print("Failed to lock camera device for configuration: \(error.localizedDescription)")
     }
 
     // 3. Create device input and configure session preset
@@ -282,7 +282,7 @@ class DataMatrixScannerView: ExpoView, AVCaptureVideoDataOutputSampleBufferDeleg
   private func tryZXingFallback(pixelBuffer: CVPixelBuffer) {
     defer { isProcessingFrame = false }
 
-    let zxingResults = ZXingBridge.readDataMatrix(fromPixelBuffer: pixelBuffer)
+    let zxingResults = ZXingBridge.readDataMatrix(from: pixelBuffer)
     if !zxingResults.isEmpty {
       var barcodesPayload: [[String: Any]] = []
       for res in zxingResults {
@@ -329,8 +329,10 @@ class DataMatrixScannerView: ExpoView, AVCaptureVideoDataOutputSampleBufferDeleg
     ]
 
     var rawString: String? = nil
-    if let payloadData = barcode.payloadData {
-      rawString = String(data: payloadData, encoding: .isoLatin1)
+    if #available(iOS 17.0, *) {
+      if let payloadData = barcode.payloadData {
+        rawString = String(data: payloadData, encoding: .isoLatin1)
+      }
     }
 
     var payload: [String: Any] = [

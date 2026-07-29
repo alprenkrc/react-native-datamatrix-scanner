@@ -72,41 +72,33 @@ public final class DataMatrixScannerModule: Module {
 // MARK: – Camera permission requester
 // ---------------------------------------------------------------------------
 
-/// Minimal permission requester for camera-only access.
-/// Mirrors the pattern used in expo-camera's CameraPermissionRequester.
 private class CameraOnlyPermissionRequester: NSObject, EXPermissionsRequester {
 
   static func permissionType() -> String { "camera" }
+
+  func getPermissions() -> [AnyHashable : Any]? {
+    var statusString = "undetermined"
+    let status = AVCaptureDevice.authorizationStatus(for: .video)
+    if status == .authorized {
+      statusString = "granted"
+    } else if status == .denied || status == .restricted {
+      statusString = "denied"
+    }
+
+    return [
+      "status": statusString,
+      "granted": status == .authorized,
+      "canAskAgain": status != .denied,
+      "expires": "never"
+    ]
+  }
 
   func requestPermissions(
     resolver resolve: @escaping EXPromiseResolveBlock,
     rejecter reject: @escaping EXPromiseRejectBlock
   ) {
-    AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
-      self?.getPermissions(resolver: resolve, rejecter: reject)
+    AVCaptureDevice.requestAccess(for: .video) { [weak self] _ in
+      resolve(self?.getPermissions())
     }
-  }
-
-  func getPermissions(
-    resolver resolve: EXPromiseResolveBlock,
-    rejecter reject: EXPromiseRejectBlock
-  ) {
-    var permissionStatus: EXPermissionStatus
-
-    switch AVCaptureDevice.authorizationStatus(for: .video) {
-    case .authorized:
-      permissionStatus = EXPermissionStatusGranted
-    case .denied, .restricted:
-      permissionStatus = EXPermissionStatusDenied
-    default:
-      permissionStatus = EXPermissionStatusUndetermined
-    }
-
-    resolve([
-      "status":       EXPermissionsMethodsDelegate.permissionString(for: permissionStatus) as Any,
-      "granted":      permissionStatus == EXPermissionStatusGranted,
-      "canAskAgain":  AVCaptureDevice.authorizationStatus(for: .video) != .denied,
-      "expires":      "never"
-    ])
   }
 }
