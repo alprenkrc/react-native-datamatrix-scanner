@@ -22,6 +22,7 @@ Pod::Spec.new do |s|
     'CLANG_CXX_LANGUAGE_STANDARD' => 'c++20',
     'CLANG_CXX_LIBRARY' => 'libc++',
     'USE_HEADERMAP' => 'NO',
+    'GCC_PREPROCESSOR_DEFINITIONS' => '$(inherited) ZXING_READERS=1',
     'HEADER_SEARCH_PATHS' => '"$(PODS_TARGET_SRCROOT)/zxing" "$(PODS_TARGET_SRCROOT)/zxing/datamatrix" "$(PODS_TARGET_SRCROOT)/zxing/aztec" "$(PODS_TARGET_SRCROOT)/zxing/maxicode" "$(PODS_TARGET_SRCROOT)/zxing/oned" "$(PODS_TARGET_SRCROOT)/zxing/pdf417" "$(PODS_TARGET_SRCROOT)/zxing/qrcode" "$(PODS_TARGET_SRCROOT)/zxing/libzint" "$(PODS_TARGET_SRCROOT)/zxing/libzueci"'
   }
 
