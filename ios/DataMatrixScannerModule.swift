@@ -13,33 +13,57 @@ public final class DataMatrixScannerModule: Module {
     Name("ExpoDataMatrixScanner")
 
     // -----------------------------------------------------------------------
-    // MARK: – Permission helpers
+    // MARK: – Permission helpers (Native Swift AVFoundation)
     // -----------------------------------------------------------------------
 
-    OnCreate {
-      let permissionsManager = self.appContext?.permissions
-      EXPermissionsMethodsDelegate.register(
-        [CameraOnlyPermissionRequester()],
-        withPermissionsManager: permissionsManager
-      )
-    }
-
     AsyncFunction("getCameraPermissionsAsync") { (promise: Promise) in
-      EXPermissionsMethodsDelegate.getPermissionWithPermissionsManager(
-        self.appContext?.permissions,
-        withRequester: CameraOnlyPermissionRequester.self,
-        resolve: promise.legacyResolver,
-        reject: promise.legacyRejecter
-      )
+      let status = AVCaptureDevice.authorizationStatus(for: .video)
+      var statusString = "undetermined"
+      var granted = false
+      
+      switch status {
+      case .authorized:
+        statusString = "granted"
+        granted = true
+      case .denied, .restricted:
+        statusString = "denied"
+      case .notDetermined:
+        statusString = "undetermined"
+      @unknown default:
+        statusString = "undetermined"
+      }
+      
+      promise.resolve([
+        "status": statusString,
+        "granted": granted,
+        "canAskAgain": status != .denied && status != .restricted,
+        "expires": "never"
+      ])
     }
 
     AsyncFunction("requestCameraPermissionsAsync") { (promise: Promise) in
-      EXPermissionsMethodsDelegate.askForPermission(
-        withPermissionsManager: self.appContext?.permissions,
-        withRequester: CameraOnlyPermissionRequester.self,
-        resolve: promise.legacyResolver,
-        reject: promise.legacyRejecter
-      )
+      AVCaptureDevice.requestAccess(for: .video) { granted in
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        var statusString = "undetermined"
+        
+        switch status {
+        case .authorized:
+          statusString = "granted"
+        case .denied, .restricted:
+          statusString = "denied"
+        case .notDetermined:
+          statusString = "undetermined"
+        @unknown default:
+          statusString = "undetermined"
+        }
+        
+        promise.resolve([
+          "status": statusString,
+          "granted": granted,
+          "canAskAgain": status != .denied && status != .restricted,
+          "expires": "never"
+        ])
+      }
     }
 
     // -----------------------------------------------------------------------
@@ -64,41 +88,6 @@ public final class DataMatrixScannerModule: Module {
       OnViewDidUpdateProps { (view: DataMatrixScannerView) in
         view.startSessionIfNeeded()
       }
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// MARK: – Camera permission requester
-// ---------------------------------------------------------------------------
-
-private class CameraOnlyPermissionRequester: NSObject, EXPermissionsRequester {
-
-  static func permissionType() -> String { "camera" }
-
-  func getPermissions() -> [AnyHashable : Any]? {
-    var statusString = "undetermined"
-    let status = AVCaptureDevice.authorizationStatus(for: .video)
-    if status == .authorized {
-      statusString = "granted"
-    } else if status == .denied || status == .restricted {
-      statusString = "denied"
-    }
-
-    return [
-      "status": statusString,
-      "granted": status == .authorized,
-      "canAskAgain": status != .denied,
-      "expires": "never"
-    ]
-  }
-
-  func requestPermissions(
-    resolver resolve: @escaping EXPromiseResolveBlock,
-    rejecter reject: @escaping EXPromiseRejectBlock
-  ) {
-    AVCaptureDevice.requestAccess(for: .video) { [weak self] _ in
-      resolve(self?.getPermissions())
     }
   }
 }
