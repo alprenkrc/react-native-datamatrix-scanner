@@ -33,7 +33,7 @@ Pod::Spec.new do |s|
   # (libzint/eci.h collides with zxing/ECI.h), producing build errors:
   #   "cannot use dot operator on a type" and "use of undeclared identifier 'ToECI'"
   s.source_files = '**/*.{h,m,mm,swift,cpp,c}'
-  s.exclude_files = 'zxing/libzint/**/*.h'
+  s.exclude_files = 'zxing/libzint/**/*'
   s.public_header_files = 'ZXingBridge.h'
 
   # AVFoundation is a system framework; no extra pod needed.
